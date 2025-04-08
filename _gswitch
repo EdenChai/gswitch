@@ -1,0 +1,10 @@
+#compdef gswitch
+
+_gswitch() {
+  local -a branches
+  branches=(${(f)"$(git branch --format='%(refname:short)' 2>/dev/null)"})
+  _describe 'git branches' branches
+}
+
+_gswitch "$@"
+
