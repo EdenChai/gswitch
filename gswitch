@@ -1,34 +1,56 @@
 #!/bin/bash
 
+# Colors
+R='\033[1;31m' # RED
+G='\033[1;32m' # GREEN
+Y='\033[0;93m' # YELLOW
+B='\033[0;94m' # BLUE
+W='\033[0m'    # WHITE
+
+
 if [ -z "$1" ]; then
-    echo "Usage: gswitch <branch-name>"
+    echo -e "${R}Usage: gswitch <branch-name>${W}"
     exit 1
 fi
 
-BRANCH=$1
+NEW_BRANCH="$1"
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 STASH_MSG="gswitch: $CURRENT_BRANCH"
 
-if [ "$BRANCH" == "$CURRENT_BRANCH" ]; then
-    echo "[!] You are already on branch '$BRANCH'"
+# Check if already on target branch
+if [[ "$NEW_BRANCH" == "$CURRENT_BRANCH" ]]; then
+    echo -e "${Y}[!] You are already on branch '$NEW_BRANCH'${W}"
     exit 0
 fi
 
-echo "[*] Stashing current changes with message '$STASH_MSG'..."
-git stash push -m "$STASH_MSG"
-
-echo "[*] Switching to branch '$BRANCH'..."
-git checkout "$BRANCH"
-
-# Check if there is a stash related to this branch
-echo "[*] Looking for stashes related to '$BRANCH'..."
-STASH_REF=$(git stash list | grep "gswitch: $BRANCH" | head -n 1 | cut -d: -f1)
-
-if [ -n "$STASH_REF" ]; then
-    echo "[*] Popping stash '$STASH_REF'..."
-    git stash pop "$STASH_REF"
-else
-    echo "[*] No stash found for '$BRANCH'."
+# Check if branch exists
+if ! git show-ref --verify --quiet "refs/heads/$NEW_BRANCH"; then
+    echo -e "${R}[!] Branch '$NEW_BRANCH' does not exist${W}"
+    exit 1
 fi
 
-echo "[✓] Done."
+# Stash changes for current branch
+echo -e "${B}[*] Stashing current changes...${W}"
+STASH_OUTPUT=$(git stash push -m "$STASH_MSG")
+if [[ "$STASH_OUTPUT" == "No local changes to save" ]]; then
+    echo "No local changes to save"
+else
+    echo "Changes stashed with message: '$STASH_MSG'"
+fi
+
+# Switch from the current to the new branch
+echo -e "${B}[*] Switching...${W}"
+git checkout "$NEW_BRANCH" >/dev/null
+
+# Pop changes from stash for the new branch
+echo -e "${B}[*] Looking for matching stash to apply...${W}"
+STASH_REF=$(git stash list | grep "gswitch: $NEW_BRANCH" | head -n 1 | cut -d: -f1)
+
+if [ -n "$STASH_REF" ]; then
+    git stash pop "$STASH_REF" >/dev/null
+        echo "Stash applied to branch '${NEW_BRANCH}'"
+else
+    echo "No stash found for branch '$NEW_BRANCH'"
+fi
+
+echo -e "${G}[✓] Switching completed${W}"
